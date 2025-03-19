@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Sensor IoT</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        table { width: 80%; margin: 20px auto; border-collapse: collapse; }
+        th, td { border: 1px solid black; padding: 10px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        select, button {
+            padding: 8px;
+            font-size: 14px;
+            margin: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Dashboard Sensor IoT</h1>
+    <p>Data terbaru dari AWS IoT Core:</p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Flag</th>
+                <th>Value</th>
+            </tr>
+        </thead>
+        <tbody id="data-table">
+            <!-- Data akan ditampilkan di sini -->
+        </tbody>
+    </table>
+
+    <h2>Kontrol Sensor</h2>
+
+    <label for="flagDropdown">Pilih Sensor:</label>
+    <select id="flagDropdown"></select>
+
+    <label for="switchDropdown">Nilai:</label>
+    <select id="switchDropdown">
+        <option value="0">0 (Off)</option>
+        <option value="1">1 (On)</option>
+    </select>
+
+    <button id="toggleButton">Kirim Data</button>
+
+    <script>
+        const socket = new WebSocket('ws://localhost:8080');
+        let sensorDataMap = new Map();
+    
+        socket.onopen = () => console.log('✅ WebSocket Terhubung');
+        socket.onerror = (error) => console.error('❌ WebSocket Error:', error);
+    
+        socket.onmessage = (event) => {
+            const dataArray = JSON.parse(event.data);
+            console.log("📨 Data diterima:", dataArray);
+    
+            dataArray.forEach(sensor => {
+                sensorDataMap.set(sensor.flag, sensor.value ?? 0); // 🛠 Default value = 0
+            });
+    
+            updateTable();
+            updateDropdown();
+        };
+    
+        function updateTable() {
+            const table = document.getElementById('data-table');
+            table.innerHTML = "";
+            let index = 1;
+    
+            // 🛠 Pastikan semua sensor memiliki default value 0
+            const allSensors = ["DOC0", "DOC1", "DOC2", "DOC3", "EXTPWR"];
+            allSensors.forEach(flag => {
+                let value = sensorDataMap.get(flag) ?? 0; // Set default = 0
+                table.innerHTML += `
+                    <tr>
+                        <td>${index++}</td>
+                        <td>${flag}</td>
+                        <td>${value}</td>
+                    </tr>
+                `;
+            });
+        }
+    
+        function updateDropdown() {
+            const flagDropdown = document.getElementById('flagDropdown');
+            flagDropdown.innerHTML = "";
+    
+            const allSensors = ["DOC0", "DOC1", "DOC2", "DOC3", "EXTPWR"];
+            allSensors.forEach(flag => {
+                let option = document.createElement("option");
+                option.value = flag;
+                option.textContent = flag;
+                flagDropdown.appendChild(option);
+            });
+        }
+    
+        document.getElementById("toggleButton").addEventListener("click", function() {
+            const selectedFlag = document.getElementById("flagDropdown").value;
+            const selectedValue = document.getElementById("switchDropdown").value;
+    
+            const sendData = {
+                sensorDatas: [
+                    { flag: selectedFlag, switcher: parseInt(selectedValue) }
+                ]
+            };
+    
+            console.log("📤 Mengirim data ke MQTT:", sendData);
+            socket.send(JSON.stringify(sendData));
+        });
+    
+    </script>
+    
+
+</body>
+</html>
